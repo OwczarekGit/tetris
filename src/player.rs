@@ -1,6 +1,7 @@
 use crate::{
     board::Board,
     brick::Brick,
+    cell::Cell,
     traits::{HasSize, IterateDimensions},
 };
 
@@ -11,6 +12,13 @@ pub struct Player {
 }
 
 impl Player {
+    pub fn as_ghost(&self) -> Self {
+        Self {
+            brick: self.brick.as_ghost(),
+            ..*self
+        }
+    }
+
     pub fn with_brick_centered(brick: Brick, width: i32) -> Self {
         let x = width / 2 - brick.width() / 2;
         Self {
@@ -87,7 +95,7 @@ impl HasSize for Player {
 }
 
 impl IterateDimensions for Player {
-    type Output = bool;
+    type Output = Option<Cell>;
 
     fn get_item(&self, x: i32, y: i32) -> Self::Output {
         self.brick.get_item(x, y)

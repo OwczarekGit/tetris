@@ -1,12 +1,16 @@
 use board::Board;
 use brick::Brick;
+use cell::Cell;
 use player::Player;
+use rand::Rng;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use traits::{HasSize, IterateDimensions};
 
 mod board;
 mod brick;
+mod cell;
+mod color;
 mod player;
 mod traits;
 
@@ -18,11 +22,13 @@ use std::time::Duration;
 const SCALE: i32 = 28;
 
 fn random_player(width: i32) -> Player {
-    let i: i32 = rand::random();
+    let i: i32 = rand::thread_rng().gen_range(0..=6);
     Player::with_brick_centered_rand(width, i)
 }
 
 pub fn main() {
+    dotenvy::dotenv().ok();
+
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
@@ -163,28 +169,18 @@ pub fn main() {
             let rect = sdl2::rect::Rect::new(x * SCALE, y * SCALE, SCALE as u32, SCALE as u32);
             canvas.set_draw_color(Color::RGB(44, 44, 44));
             let _ = canvas.draw_rect(rect);
-            if c {
-                canvas.set_draw_color(Color::RGB(255, 0, 0));
+            if let Some(Cell::Normal(c)) = c {
+                canvas.set_draw_color(sdl2::pixels::Color::from(c));
                 let _ = canvas.fill_rect(rect);
             }
         });
 
-        draw_brick(
-            &mut canvas,
-            player.position(),
-            player.brick(),
-            Color::RGB(255, 0, 0),
-        );
-        draw_brick(
-            &mut canvas,
-            (12, 2),
-            next_player.brick(),
-            Color::RGB(255, 0, 0),
-        );
+        draw_brick(&mut canvas, player.position(), player.brick());
+        draw_brick(&mut canvas, (12, 2), next_player.brick());
 
         let mut ghost = player;
         'ghost: loop {
-            let lower = ghost.move_down();
+            let lower = ghost.move_down().as_ghost();
             if lower.brick_fits(&board) {
                 ghost = lower;
             } else {
@@ -192,15 +188,10 @@ pub fn main() {
             }
         }
 
-        draw_brick(
-            &mut canvas,
-            ghost.position(),
-            ghost.brick(),
-            Color::RGB(200, 200, 200),
-        );
+        draw_brick(&mut canvas, ghost.position(), ghost.brick());
 
         if let Some(h) = hold {
-            draw_brick(&mut canvas, (12, 6), h, Color::RGB(255, 0, 0));
+            draw_brick(&mut canvas, (12, 6), h);
         }
 
         canvas.present();
@@ -212,18 +203,27 @@ pub fn main() {
 fn draw_brick(
     canvas: &mut Canvas<Window>,
     (ox, oy): (i32, i32),
-    brick: impl IterateDimensions<Output = bool>,
-    color: Color,
+    brick: impl IterateDimensions<Output = Option<Cell>>,
 ) {
     brick.iter_dim(|x, y, c| {
-        if c {
+        if let Some(Cell::Normal(color)) = c {
             let rect = sdl2::rect::Rect::new(
                 (x + ox) * SCALE,
                 (y + oy) * SCALE,
                 SCALE as u32,
                 SCALE as u32,
             );
-            canvas.set_draw_color(color);
+            canvas.set_draw_color(sdl2::pixels::Color::from(color));
+            let _ = canvas.fill_rect(rect);
+        }
+        if let Some(Cell::Ghost) = c {
+            let rect = sdl2::rect::Rect::new(
+                (x + ox) * SCALE,
+                (y + oy) * SCALE,
+                SCALE as u32,
+                SCALE as u32,
+            );
+            canvas.set_draw_color(Color::RGB(255, 255, 255));
             let _ = canvas.fill_rect(rect);
         }
     });
