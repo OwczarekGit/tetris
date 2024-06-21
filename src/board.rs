@@ -13,9 +13,18 @@ pub const WIDTH: i32 = 10;
 pub const HEIGHT: i32 = 20;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Board([Option<Cell>; WIDTH as usize * HEIGHT as usize]);
+pub struct Board {
+    size: (i32, i32),
+    cells: [Option<Cell>; WIDTH as usize * HEIGHT as usize],
+}
 
 impl Board {
+    pub fn new(w: i32, h: i32) -> Self {
+        Self {
+            size: (w, h),
+            ..Default::default()
+        }
+    }
     pub fn insert_brick(&mut self, (ox, oy): (i32, i32), brick: Brick) {
         brick.iter_dim(|x, y, c| {
             if let Some(c) = c {
@@ -76,21 +85,27 @@ impl Board {
         }
     }
 
-    pub fn clean_drop(&mut self) {
+    pub fn clean_drop(&mut self) -> u32 {
+        let mut cleared = 0;
         for y in (0..self.height()).rev() {
             if self.line_full(y) {
+                cleared += 1;
                 self.clear_line(y);
                 for dy in (0..y).rev() {
                     self.drop_line(dy);
                 }
             }
         }
+        cleared
     }
 }
 
 impl Default for Board {
     fn default() -> Self {
-        Self([None; WIDTH as usize * HEIGHT as usize])
+        Self {
+            size: (WIDTH, HEIGHT),
+            cells: [None; WIDTH as usize * HEIGHT as usize],
+        }
     }
 }
 
@@ -113,11 +128,11 @@ impl Display for Board {
 
 impl HasSize for Board {
     fn width(&self) -> i32 {
-        WIDTH as i32
+        self.size.0
     }
 
     fn height(&self) -> i32 {
-        HEIGHT as i32
+        self.size.1
     }
 }
 
@@ -134,13 +149,13 @@ impl Index<(i32, i32)> for Board {
 
     fn index(&self, (x, y): (i32, i32)) -> &Self::Output {
         let idx = y * self.width() + x;
-        &self.0[idx as usize]
+        &self.cells[idx as usize]
     }
 }
 
 impl IndexMut<(i32, i32)> for Board {
     fn index_mut(&mut self, (x, y): (i32, i32)) -> &mut Self::Output {
         let idx = y * self.width() + x;
-        &mut self.0[idx as usize]
+        &mut self.cells[idx as usize]
     }
 }

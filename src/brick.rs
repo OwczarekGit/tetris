@@ -17,57 +17,73 @@ const YELLOW: Option<Cell> = Some(Cell::Normal(Color(255, 255, 0)));
 const PURPLE: Option<Cell> = Some(Cell::Normal(Color(255, 0, 255)));
 const CYAN: Option<Cell> = Some(Cell::Normal(Color(0, 255, 255)));
 
+#[rustfmt::skip]
 impl Brick {
     pub fn z() -> Self {
         Self([
-            None, None, None, None, RED, RED, None, None, None, RED, RED, None, None, None, None,
-            None,
+            None, None, None, None,
+            RED, RED, None, None,
+            None, RED, RED, None,
+            None, None, None, None,
         ])
     }
 
     pub fn s() -> Self {
         Self([
-            None, None, None, None, None, None, GREEN, GREEN, None, GREEN, GREEN, None, None, None,
-            None, None,
+            None, None, None, None,
+            None, None, GREEN, GREEN,
+            None, GREEN, GREEN, None,
+            None, None, None, None,
         ])
     }
 
     pub fn l() -> Self {
         Self([
-            None, ORANGE, None, None, None, ORANGE, None, None, None, ORANGE, ORANGE, None, None,
-            None, None, None,
+            None, ORANGE, None, None,
+            None, ORANGE, None, None,
+            None, ORANGE, ORANGE, None,
+            None, None, None, None,
         ])
     }
 
     pub fn j() -> Self {
         Self([
-            None, None, BLUE, None, None, None, BLUE, None, None, BLUE, BLUE, None, None, None,
-            None, None,
+            None, None, BLUE, None,
+            None, None, BLUE, None,
+            None, BLUE, BLUE, None,
+            None, None, None, None,
         ])
     }
 
     pub fn t() -> Self {
         Self([
-            PURPLE, PURPLE, PURPLE, None, None, PURPLE, None, None, None, None, None, None, None,
-            None, None, None,
+            None, None, None, None,
+            PURPLE, PURPLE, PURPLE, None,
+            None, PURPLE, None, None,
+            None, None, None, None,
         ])
     }
 
     pub fn o() -> Self {
         Self([
-            None, None, None, None, None, YELLOW, YELLOW, None, None, YELLOW, YELLOW, None, None,
-            None, None, None,
+            None, None, None, None,
+            None, YELLOW, YELLOW, None,
+            None, YELLOW, YELLOW, None,
+            None, None, None, None,
         ])
     }
 
     pub fn i() -> Self {
         Self([
-            None, None, None, None, CYAN, CYAN, CYAN, CYAN, None, None, None, None, None, None,
-            None, None,
+            None, None, None, None,
+            CYAN, CYAN, CYAN, CYAN,
+            None, None, None, None,
+            None, None, None, None,
         ])
     }
 
     pub fn by_index(i: i32) -> Self {
+        let i = i % 7;
         match i {
             0 => Self::i(),
             1 => Self::o(),

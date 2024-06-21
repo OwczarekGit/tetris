@@ -1,41 +1,39 @@
-use board::Board;
-use brick::Brick;
 use cell::Cell;
-use player::Player;
-use rand::Rng;
-use sdl2::render::Canvas;
+use sdl2::rect::Rect;
+use sdl2::render::{Canvas, TextureQuery};
+use sdl2::rwops::RWops;
+use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
-use traits::{HasSize, IterateDimensions};
+use tetris::Tetris;
+use traits::IterateDimensions;
 
 mod board;
 mod brick;
 mod cell;
 mod color;
 mod player;
+mod tetris;
 mod traits;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
+use sdl2::pixels::{self, Color};
 use std::time::Duration;
 
 const SCALE: i32 = 28;
 
-fn random_player(width: i32) -> Player {
-    let i: i32 = rand::thread_rng().gen_range(0..=6);
-    Player::with_brick_centered_rand(width, i)
-}
-
 pub fn main() {
     dotenvy::dotenv().ok();
+    let font_bytes = include_bytes!("../PixelFJVerdana12pt.ttf");
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
+    let ttf = sdl2::ttf::init().unwrap();
+    let rwops = RWops::from_bytes(font_bytes).unwrap();
+    let mut font = ttf.load_font_from_rwops(rwops, 16).unwrap();
+    font.set_style(FontStyle::BOLD);
 
-    let mut board = Board::default();
-    let mut player = random_player(board.width());
-    let mut next_player = random_player(board.width());
-    let mut hold: Option<Brick> = None;
+    let mut tetris = Tetris::new(10, 20, 1231);
 
     let window = video_subsystem
         .window("Tetris", 800, 600)
@@ -44,160 +42,111 @@ pub fn main() {
         .unwrap();
 
     let mut canvas = window.into_canvas().build().unwrap();
+    let texture_creator = canvas.texture_creator();
 
     canvas.set_draw_color(Color::RGB(0, 255, 255));
     canvas.clear();
     canvas.present();
     let mut event_pump = sdl_context.event_pump().unwrap();
-    let mut drop_timer = 0;
     'running: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-                Event::KeyDown {
-                    keycode: Some(Keycode::S),
-                    ..
-                } => {
-                    if let Some(h) = hold {
-                        let changed = player.set_brick(h);
-                        if board.brick_fits(changed.position(), changed.brick()) {
-                            let current = player.brick();
-                            hold = Some(current);
-                            player = changed;
-                        }
-                    } else {
-                        hold = Some(player.brick());
-                        player = next_player;
-                        next_player = random_player(board.width());
-                        drop_timer -= 30;
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::A),
-                    ..
-                } => {
-                    let moved = player.rotate_left();
-                    if moved.brick_fits(&board) {
-                        player = moved;
-                        drop_timer = -30;
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::D),
-                    ..
-                } => {
-                    let moved = player.rotate_right();
-                    if moved.brick_fits(&board) {
-                        player = moved;
-                        drop_timer = -30;
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Down),
-                    ..
-                } => {
-                    let moved = player.move_down();
-                    if moved.brick_fits(&board) {
-                        player = moved;
-                        drop_timer = 1;
-                    } else {
-                        board.insert_brick(player.position(), player.brick());
-                        player = random_player(board.width());
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Left),
-                    ..
-                } => {
-                    let moved = player.move_left();
-                    if moved.brick_fits(&board) {
-                        player = moved;
-                        drop_timer -= 30;
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Right),
-                    ..
-                } => {
-                    let moved = player.move_right();
-                    if moved.brick_fits(&board) {
-                        player = moved;
-                        drop_timer -= 30;
-                    }
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Space),
-                    ..
-                } => {
-                    let mut dropped = player;
-                    'dropped: loop {
-                        let lower = dropped.move_down();
-                        if lower.brick_fits(&board) {
-                            dropped = lower;
-                        } else {
-                            break 'dropped;
-                        }
-                    }
-                    board.insert_brick(dropped.position(), dropped.brick());
-                    player = next_player;
-                    next_player = random_player(board.width());
-                }
-                _ => {}
+            if handle_events(&mut tetris, event) {
+                break 'running;
             }
         }
 
-        if drop_timer % 60 == 0 {
-            let moved = player.move_down();
-            if moved.brick_fits(&board) {
-                player = moved;
-            } else {
-                board.insert_brick(player.position(), player.brick());
-                player = next_player;
-                next_player = random_player(board.width());
-            }
-        }
-
-        board.clean_drop();
-
-        board.iter_dim(|x, y, c| {
-            let rect = sdl2::rect::Rect::new(x * SCALE, y * SCALE, SCALE as u32, SCALE as u32);
+        tetris.iter_dim(|x, y, c| {
+            let rect = Rect::new(x * SCALE, y * SCALE, SCALE as u32, SCALE as u32);
             canvas.set_draw_color(Color::RGB(44, 44, 44));
             let _ = canvas.draw_rect(rect);
-            if let Some(Cell::Normal(c)) = c {
-                canvas.set_draw_color(sdl2::pixels::Color::from(c));
+            if let Some(c) = c {
+                let color = match c {
+                    Cell::Normal(color) => color.into(),
+                    Cell::Ghost => pixels::Color::RGB(255, 255, 255),
+                };
+                canvas.set_draw_color(color);
                 let _ = canvas.fill_rect(rect);
             }
         });
 
-        draw_brick(&mut canvas, player.position(), player.brick());
-        draw_brick(&mut canvas, (12, 2), next_player.brick());
-
-        let mut ghost = player;
-        'ghost: loop {
-            let lower = ghost.move_down().as_ghost();
-            if lower.brick_fits(&board) {
-                ghost = lower;
-            } else {
-                break 'ghost;
-            }
+        if let Some(held) = tetris.held() {
+            draw_brick(&mut canvas, (12, 10), held);
         }
 
-        draw_brick(&mut canvas, ghost.position(), ghost.brick());
-
-        if let Some(h) = hold {
-            draw_brick(&mut canvas, (12, 6), h);
-        }
+        draw_brick(&mut canvas, (12, 4), tetris.next());
+        let surface = font
+            .render(&format!("{:0>12}", tetris.score()))
+            .blended(Color::RGB(255, 255, 255))
+            .unwrap();
+        let texture = texture_creator
+            .create_texture_from_surface(&surface)
+            .unwrap();
+        let TextureQuery { width, height, .. } = texture.query();
+        let target = Rect::new(16 * SCALE, 0 * SCALE, width, height);
+        let _ = canvas.copy(&texture, None, Some(target));
 
         canvas.present();
-        drop_timer += 1;
+        tetris.tick();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
+}
+
+fn handle_events(tetris: &mut Tetris, ev: Event) -> bool {
+    match ev {
+        Event::Quit { .. }
+        | Event::KeyDown {
+            keycode: Some(Keycode::Escape),
+            ..
+        } => {
+            return true;
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::S),
+            ..
+        } => {
+            tetris.swap_held();
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::A),
+            ..
+        } => {
+            tetris.rotate_left();
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::D),
+            ..
+        } => {
+            tetris.rotate_right();
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::Down),
+            ..
+        } => {
+            tetris.move_down();
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::Left),
+            ..
+        } => {
+            tetris.move_left();
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::Right),
+            ..
+        } => {
+            tetris.move_right();
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::Space),
+            ..
+        } => {
+            tetris.drop_block();
+        }
+        _ => {}
+    }
+    false
 }
 
 fn draw_brick(
@@ -227,4 +176,10 @@ fn draw_brick(
             let _ = canvas.fill_rect(rect);
         }
     });
+}
+
+impl From<crate::color::Color> for sdl2::pixels::Color {
+    fn from(crate::color::Color(r, g, b): crate::color::Color) -> Self {
+        Self { r, g, b, a: 255 }
+    }
 }
