@@ -84,7 +84,7 @@ pub fn main() {
             .create_texture_from_surface(&surface)
             .unwrap();
         let TextureQuery { width, height, .. } = texture.query();
-        let target = Rect::new(16 * SCALE, 0 * SCALE, width, height);
+        let target = Rect::new(16 * SCALE, SCALE, width, height);
         let _ = canvas.copy(&texture, None, Some(target));
 
         canvas.present();

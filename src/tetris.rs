@@ -131,7 +131,7 @@ impl Tetris {
 
         self.score += 3 * self.board.clean_drop();
 
-        let mut ghost = self.player.clone();
+        let mut ghost = self.player;
         'ghost: loop {
             let lower = ghost.move_down().as_ghost();
             if lower.brick_fits(&self.board) {
@@ -176,7 +176,7 @@ impl IterateDimensions for Tetris {
     }
 
     fn iter_dim(&self, mut action: impl FnMut(i32, i32, Self::Output)) {
-        let mut board = self.board.clone();
+        let mut board = self.board;
         board.insert_brick(self.ghost.position(), self.ghost.brick());
         board.insert_brick(self.player.position(), self.player.brick());
 

@@ -102,7 +102,7 @@ impl Brick {
         let mut new = Self::default();
         for y in 0..4 {
             for x in 0..4 {
-                if let Some(c) = self.get_item(x, y) {
+                if self.get_item(x, y).is_some() {
                     new[(x, y)] = Some(Cell::Ghost);
                 }
             }
