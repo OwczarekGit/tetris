@@ -28,16 +28,35 @@ pub fn main() {
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
+    let controller_subsystem = sdl_context.game_controller().unwrap();
     let ttf = sdl2::ttf::init().unwrap();
     let rwops = RWops::from_bytes(font_bytes).unwrap();
     let mut font = ttf.load_font_from_rwops(rwops, 16).unwrap();
     font.set_style(FontStyle::BOLD);
+
+    let available = controller_subsystem.num_joysticks().unwrap();
+
+    let _controller = (0..available).find_map(|id| {
+        if !controller_subsystem.is_game_controller(id) {
+            return None;
+        }
+
+        match controller_subsystem.open(id) {
+            Ok(c) => {
+                // We managed to find and open a game controller,
+                // exit the loop
+                Some(c)
+            }
+            Err(_) => None,
+        }
+    });
 
     let mut tetris = Tetris::new(10, 20, 1231);
 
     let window = video_subsystem
         .window("Tetris", 800, 600)
         .position_centered()
+        .opengl()
         .build()
         .unwrap();
 
@@ -49,7 +68,7 @@ pub fn main() {
     canvas.present();
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.set_draw_color(Color::RGB(0, 33, 44));
         canvas.clear();
         for event in event_pump.poll_iter() {
             if handle_events(&mut tetris, event) {
@@ -64,7 +83,7 @@ pub fn main() {
             if let Some(c) = c {
                 let color = match c {
                     Cell::Normal(color) => color.into(),
-                    Cell::Ghost => pixels::Color::RGB(255, 255, 255),
+                    Cell::Ghost => pixels::Color::RGBA(255, 255, 255, 20),
                 };
                 canvas.set_draw_color(color);
                 let _ = canvas.fill_rect(rect);
@@ -84,7 +103,7 @@ pub fn main() {
             .create_texture_from_surface(&surface)
             .unwrap();
         let TextureQuery { width, height, .. } = texture.query();
-        let target = Rect::new(16 * SCALE, SCALE, width, height);
+        let target = Rect::new(16 * SCALE, 0, width, height);
         let _ = canvas.copy(&texture, None, Some(target));
 
         canvas.present();
@@ -144,6 +163,30 @@ fn handle_events(tetris: &mut Tetris, ev: Event) -> bool {
         } => {
             tetris.drop_block();
         }
+        Event::ControllerButtonDown { button, .. } => match button {
+            sdl2::controller::Button::A => {
+                tetris.drop_block();
+            }
+            sdl2::controller::Button::X => {
+                tetris.swap_held();
+            }
+            sdl2::controller::Button::LeftShoulder => {
+                tetris.rotate_left();
+            }
+            sdl2::controller::Button::RightShoulder => {
+                tetris.rotate_right();
+            }
+            sdl2::controller::Button::DPadDown => {
+                tetris.move_down();
+            }
+            sdl2::controller::Button::DPadLeft => {
+                tetris.move_left();
+            }
+            sdl2::controller::Button::DPadRight => {
+                tetris.move_right();
+            }
+            _ => {}
+        },
         _ => {}
     }
     false

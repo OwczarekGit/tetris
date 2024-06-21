@@ -8,6 +8,8 @@ use crate::{
     traits::{HasSize, IterateDimensions},
 };
 
+const EXTRA_FRAMES: u32 = 2;
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Tetris {
     board: Board,
@@ -38,7 +40,7 @@ impl Tetris {
         let moved = self.player.move_left();
         if moved.brick_fits(&self.board) {
             self.player = moved;
-            self.step_timer = self.step_timer.saturating_sub(30).max(1);
+            self.step_timer = self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             true
         } else {
             false
@@ -48,7 +50,7 @@ impl Tetris {
         let moved = self.player.move_right();
         if moved.brick_fits(&self.board) {
             self.player = moved;
-            self.step_timer = self.step_timer.saturating_sub(30).max(1);
+            self.step_timer = self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             true
         } else {
             false
@@ -72,7 +74,7 @@ impl Tetris {
         let moved = self.player.rotate_left();
         if moved.brick_fits(&self.board) {
             self.player = moved;
-            self.step_timer = self.step_timer.saturating_sub(30).max(1);
+            self.step_timer = self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             true
         } else {
             false
@@ -82,7 +84,7 @@ impl Tetris {
         let moved = self.player.rotate_right();
         if moved.brick_fits(&self.board) {
             self.player = moved;
-            self.step_timer = self.step_timer.saturating_sub(30).max(1);
+            self.step_timer = self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             true
         } else {
             false
@@ -118,7 +120,7 @@ impl Tetris {
             self.held = Some(self.player.brick());
             self.player = self.player.set_brick(self.next_player);
             self.next_player = random_brick();
-            self.step_timer -= self.step_timer.saturating_sub(30).max(1);
+            self.step_timer -= self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             return true;
         }
         false
@@ -129,7 +131,8 @@ impl Tetris {
             self.move_down();
         }
 
-        self.score += 3 * self.board.clean_drop();
+        let removed = self.board.clean_drop();
+        self.score += removed * removed.pow(3);
 
         let mut ghost = self.player;
         'ghost: loop {
