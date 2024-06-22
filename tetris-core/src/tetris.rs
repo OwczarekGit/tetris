@@ -61,12 +61,14 @@ impl Tetris {
         if moved.brick_fits(&self.board) {
             self.player = moved;
             self.step_timer = 1;
+            self.score += 1;
             true
         } else {
             self.board
                 .insert_brick(self.player.position(), self.player.brick());
             self.player = Player::with_brick_centered(self.next_player, self.width());
             self.next_player = random_brick();
+            self.score += 2;
             false
         }
     }
@@ -105,6 +107,7 @@ impl Tetris {
         self.player = Player::with_brick_centered(self.next_player, self.width());
         self.next_player = random_brick();
         self.step_timer = 1;
+        self.score += 1;
     }
 
     pub fn swap_held(&mut self) -> bool {

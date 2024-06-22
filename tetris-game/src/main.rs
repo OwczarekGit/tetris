@@ -1,23 +1,13 @@
-use cell::Cell;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
 use sdl2::rwops::RWops;
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
-use tetris::Tetris;
-use traits::IterateDimensions;
-
-mod board;
-mod brick;
-mod cell;
-mod color;
-mod player;
-mod tetris;
-mod traits;
+use tetris_core::prelude::*;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::{self, Color};
+use sdl2::pixels::Color as SdlColor;
 use std::time::Duration;
 
 const SCALE: i32 = 28;
@@ -63,12 +53,12 @@ pub fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
 
-    canvas.set_draw_color(Color::RGB(0, 255, 255));
+    canvas.set_draw_color(SdlColor::RGB(0, 255, 255));
     canvas.clear();
     canvas.present();
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
-        canvas.set_draw_color(Color::RGB(0, 33, 44));
+        canvas.set_draw_color(SdlColor::RGB(0, 33, 44));
         canvas.clear();
         for event in event_pump.poll_iter() {
             if handle_events(&mut tetris, event) {
@@ -78,12 +68,12 @@ pub fn main() {
 
         tetris.iter_dim(|x, y, c| {
             let rect = Rect::new(x * SCALE, y * SCALE, SCALE as u32, SCALE as u32);
-            canvas.set_draw_color(Color::RGB(44, 44, 44));
+            canvas.set_draw_color(SdlColor::RGB(44, 44, 44));
             let _ = canvas.draw_rect(rect);
             if let Some(c) = c {
                 let color = match c {
-                    Cell::Normal(color) => color.into(),
-                    Cell::Ghost => pixels::Color::RGBA(255, 255, 255, 20),
+                    Cell::Normal(color) => SdlColor::RGB(color.0, color.1, color.2),
+                    Cell::Ghost => SdlColor::RGBA(255, 255, 255, 20),
                 };
                 canvas.set_draw_color(color);
                 let _ = canvas.fill_rect(rect);
@@ -97,7 +87,7 @@ pub fn main() {
         draw_brick(&mut canvas, (12, 4), tetris.next());
         let surface = font
             .render(&format!("{:0>12}", tetris.score()))
-            .blended(Color::RGB(255, 255, 255))
+            .blended(SdlColor::RGB(255, 255, 255))
             .unwrap();
         let texture = texture_creator
             .create_texture_from_surface(&surface)
@@ -205,7 +195,7 @@ fn draw_brick(
                 SCALE as u32,
                 SCALE as u32,
             );
-            canvas.set_draw_color(sdl2::pixels::Color::from(color));
+            canvas.set_draw_color(SdlColor::RGB(color.0, color.1, color.2));
             let _ = canvas.fill_rect(rect);
         }
         if let Some(Cell::Ghost) = c {
@@ -215,14 +205,8 @@ fn draw_brick(
                 SCALE as u32,
                 SCALE as u32,
             );
-            canvas.set_draw_color(Color::RGB(255, 255, 255));
+            canvas.set_draw_color(SdlColor::RGB(255, 255, 255));
             let _ = canvas.fill_rect(rect);
         }
     });
-}
-
-impl From<crate::color::Color> for sdl2::pixels::Color {
-    fn from(crate::color::Color(r, g, b): crate::color::Color) -> Self {
-        Self { r, g, b, a: 255 }
-    }
 }
