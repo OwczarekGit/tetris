@@ -9,8 +9,8 @@ use crate::{
     traits::{HasSize, IterateDimensions},
 };
 
-pub const WIDTH: i32 = 10;
-pub const HEIGHT: i32 = 20;
+pub const WIDTH: u32 = 10;
+pub const HEIGHT: u32 = 20;
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -103,7 +103,7 @@ impl Board {
 impl Default for Board {
     fn default() -> Self {
         Self {
-            size: (WIDTH, HEIGHT),
+            size: (WIDTH as i32, HEIGHT as i32),
             cells: vec![None; WIDTH as usize * HEIGHT as usize],
         }
     }

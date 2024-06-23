@@ -84,7 +84,6 @@ impl Brick {
 
     pub fn by_index(i: i32) -> Self {
         let i = i.abs().wrapping_rem(7);
-        dbg!(i);
         match i {
             0 => Self::i(),
             1 => Self::o(),

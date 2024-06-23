@@ -1,4 +1,7 @@
 use area::Area;
+use audio_box::{AudioBox, ROTATE_SOUND_BYTES, WRONG_MOVE_SOUND_BYTES};
+use clap::Parser;
+use config::Config;
 use tetris_core::{
     cell::Cell,
     prelude::{Color as TetrisColor, Tetris},
@@ -6,21 +9,25 @@ use tetris_core::{
 };
 
 mod area;
+mod audio_box;
+mod config;
 
 use raylib::prelude::*;
 
-const PLAYFIELD_PADDING: i32 = 0;
-const ROTATE_SOUND_BYTES: &[u8] = include_bytes!("../rotate.ogg");
-const WRONG_MOVE_SOUND_BYTES: &[u8] = include_bytes!("../wrong_move.ogg");
-
 pub fn main() {
     dotenvy::dotenv().ok();
-    let mut tetris = Tetris::new(10, 20, rand::random());
+    let config = Config::parse();
+    let mut tetris = Tetris::new(config.width as i32, config.height as i32, rand::random());
     let (mut rl, thread) = raylib::init()
-        .size(800, 800)
+        .size(920, 720)
         .title("Tetris")
         .resizable()
         .build();
+
+    // TODO: let mut audio = AudioBox::new();
+    // audio.load_sound_from_bytes("rotate", ROTATE_SOUND_BYTES, ".ogg");
+    // audio.load_sound_from_bytes("rotate", ROTATE_SOUND_BYTES, ".ogg");
+    // audio.load_sound_from_bytes("wrong", WRONG_MOVE_SOUND_BYTES, ".ogg");
 
     let audio = RaylibAudio::init_audio_device().unwrap();
     let rotate_sound = audio
@@ -38,10 +45,11 @@ pub fn main() {
     rl.set_target_fps(60);
 
     while !rl.window_should_close() {
+        let (width, height) = (rl.get_screen_width(), rl.get_screen_height());
         handle_events(&mut tetris, &mut rl, &rotate_sound, &wrong_move_sound);
 
         let cell_size = resize_playfield(
-            rl.get_screen_height(),
+            (width, height),
             tetris.width(),
             tetris.height(),
             &mut playfield,
@@ -51,10 +59,10 @@ pub fn main() {
 
         let mut draw = rl.begin_drawing(&thread);
         draw.clear_background(Color::new(0, 44, 88, 255));
-        draw_playfield(&tetris, &mut draw, cell_size);
+        draw_playfield(&playfield, &tetris, &mut draw, cell_size);
 
         draw_boxed(
-            (playfield.width() as f32 + cell_size, cell_size * 2.0),
+            (playfield.x() / 2.0 - cell_size * 2.0, cell_size * 2.0),
             cell_size,
             Some(tetris.next()),
             "Next",
@@ -62,24 +70,27 @@ pub fn main() {
         );
 
         draw_boxed(
-            (playfield.width() as f32 + cell_size, cell_size * 8.0),
+            (playfield.x() / 2.0 - cell_size * 2.0, cell_size * 8.0),
             cell_size,
             tetris.held(),
             "Hold",
             &mut draw,
         );
 
-        draw_score(
-            (playfield.width() as f32 + cell_size, cell_size / 2.0),
-            tetris.score(),
-            &mut draw,
-        );
+        draw_score(cell_size, tetris.score(), &mut draw, &playfield);
     }
 }
 
-fn draw_score((ox, oy): (f32, f32), score: u32, draw: &mut RaylibDrawHandle) {
-    let text = format!("{:0>12}", score);
-    draw.draw_text(&text, ox as i32, oy as i32, 48, Color::WHITE);
+fn draw_score(cell_size: f32, score: u32, draw: &mut RaylibDrawHandle, playfield_area: &Area) {
+    let text = format!("{:0>5}", score);
+    let text_w = draw.measure_text(&text, cell_size as i32);
+    draw.draw_text(
+        &text,
+        (playfield_area.x() / 2.0) as i32 - text_w / 2,
+        8,
+        cell_size as i32,
+        Color::WHITE,
+    );
 }
 
 fn draw_boxed(
@@ -89,7 +100,13 @@ fn draw_boxed(
     label: &str,
     draw: &mut RaylibDrawHandle,
 ) {
-    draw.draw_text(label, (ox + cell_size) as i32, oy as i32, 48, Color::WHITE);
+    draw.draw_text(
+        label,
+        (ox + cell_size) as i32,
+        oy as i32,
+        cell_size as i32,
+        Color::WHITE,
+    );
     let oy = oy + cell_size;
 
     if let Some(item) = item {
@@ -135,8 +152,8 @@ fn draw_boxed(
 fn handle_events(
     tetris: &mut Tetris,
     rl: &mut RaylibHandle,
-    rotate_sound: &Sound<'_>,
-    wrong_move_sound: &Sound<'_>,
+    rotate_sound: &Sound,
+    wrong_sound: &Sound,
 ) {
     let pressed_key = rl.get_key_pressed();
     if let Some(key) = pressed_key {
@@ -144,13 +161,13 @@ fn handle_events(
             KeyboardKey::KEY_LEFT => {
                 if tetris.move_left() {
                 } else {
-                    wrong_move_sound.play();
+                    wrong_sound.play();
                 }
             }
             KeyboardKey::KEY_RIGHT => {
                 if tetris.move_right() {
                 } else {
-                    wrong_move_sound.play();
+                    wrong_sound.play();
                 }
             }
             KeyboardKey::KEY_DOWN => {
@@ -160,14 +177,14 @@ fn handle_events(
                 if tetris.rotate_left() {
                     rotate_sound.play();
                 } else {
-                    wrong_move_sound.play();
+                    wrong_sound.play();
                 }
             }
             KeyboardKey::KEY_D => {
                 if tetris.rotate_right() {
                     rotate_sound.play();
                 } else {
-                    wrong_move_sound.play();
+                    wrong_sound.play();
                 }
             }
             KeyboardKey::KEY_SPACE => {
@@ -181,13 +198,18 @@ fn handle_events(
     }
 }
 
-fn draw_playfield(tetris: &Tetris, draw: &mut RaylibDrawHandle, cell_size: f32) {
+fn draw_playfield(
+    playfield_area: &Area,
+    tetris: &Tetris,
+    draw: &mut RaylibDrawHandle,
+    cell_size: f32,
+) {
     tetris.iter_dim(|x, y, c| {
         stroke_rect(
             draw,
             (
-                (x as f32 * cell_size).ceil(),
-                (y as f32 * cell_size).ceil(),
+                (x as f32 * cell_size + playfield_area.x()).ceil(),
+                (y as f32 * cell_size + playfield_area.y()).ceil(),
                 cell_size.ceil(),
                 cell_size.ceil(),
             ),
@@ -199,8 +221,8 @@ fn draw_playfield(tetris: &Tetris, draw: &mut RaylibDrawHandle, cell_size: f32) 
                     draw_rect(
                         draw,
                         (
-                            (x as f32 * cell_size).ceil(),
-                            (y as f32 * cell_size).ceil(),
+                            (x as f32 * cell_size + playfield_area.x()).ceil(),
+                            (y as f32 * cell_size + playfield_area.y()).ceil(),
                             cell_size.ceil(),
                             cell_size.ceil(),
                         ),
@@ -211,8 +233,8 @@ fn draw_playfield(tetris: &Tetris, draw: &mut RaylibDrawHandle, cell_size: f32) 
                     draw_rect(
                         draw,
                         (
-                            (x as f32 * cell_size).ceil(),
-                            (y as f32 * cell_size).ceil(),
+                            (x as f32 * cell_size + playfield_area.x()).ceil(),
+                            (y as f32 * cell_size + playfield_area.y()).ceil(),
                             cell_size.ceil(),
                             cell_size.ceil(),
                         ),
@@ -232,13 +254,9 @@ fn stroke_rect(draw: &mut RaylibDrawHandle, (x, y, w, h): (f32, f32, f32, f32), 
     draw.draw_rectangle_lines(x as i32, y as i32, w as i32, h as i32, color);
 }
 
-fn resize_playfield(h: i32, tetris_w: i32, tetris_h: i32, pf: &mut Area) -> f32 {
+fn resize_playfield((w, h): (i32, i32), tetris_w: i32, tetris_h: i32, pf: &mut Area) -> f32 {
     let cell_size = h as f32 / tetris_h as f32;
-    *pf = Area::new(
-        PLAYFIELD_PADDING as f32,
-        PLAYFIELD_PADDING as f32,
-        (cell_size * tetris_w as f32) - PLAYFIELD_PADDING as f32,
-        (cell_size * tetris_h as f32) - PLAYFIELD_PADDING as f32,
-    );
+    let pf_width = cell_size * tetris_w as f32;
+    *pf = Area::new(w as f32 / 2.0 - pf_width / 2.0, 0.0, cell_size, cell_size);
     cell_size
 }
