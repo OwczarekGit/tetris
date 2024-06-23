@@ -10,7 +10,7 @@ use crate::{
 
 const EXTRA_FRAMES: u32 = 2;
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct Tetris {
     board: Board,
     player: Player,
@@ -31,7 +31,7 @@ impl Tetris {
         Self {
             board: Board::new(w, h),
             player: Player::with_brick_centered_rand(w, seed),
-            next_player: Brick::by_index(seed * 3),
+            next_player: Brick::by_index(seed.wrapping_mul(3)),
             step_timer: 1,
             ..Default::default()
         }
@@ -121,7 +121,7 @@ impl Tetris {
             }
         } else {
             self.held = Some(self.player.brick());
-            self.player = self.player.set_brick(self.next_player);
+            self.player = Player::with_brick_centered(self.next_player, self.width());
             self.next_player = random_brick();
             self.step_timer -= self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             return true;
@@ -182,7 +182,7 @@ impl IterateDimensions for Tetris {
     }
 
     fn iter_dim(&self, mut action: impl FnMut(i32, i32, Self::Output)) {
-        let mut board = self.board;
+        let mut board = self.board.clone();
         board.insert_brick(self.ghost.position(), self.ghost.brick());
         board.insert_brick(self.player.position(), self.player.brick());
 

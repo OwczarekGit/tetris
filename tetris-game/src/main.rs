@@ -15,7 +15,7 @@ const WRONG_MOVE_SOUND_BYTES: &[u8] = include_bytes!("../wrong_move.ogg");
 
 pub fn main() {
     dotenvy::dotenv().ok();
-    let mut tetris = Tetris::new(10, 20, 1111);
+    let mut tetris = Tetris::new(10, 20, rand::random());
     let (mut rl, thread) = raylib::init()
         .size(800, 800)
         .title("Tetris")
@@ -181,10 +181,10 @@ fn handle_events(
     }
 }
 
-fn draw_playfield(tetris: &Tetris, mut draw: &mut RaylibDrawHandle, cell_size: f32) {
+fn draw_playfield(tetris: &Tetris, draw: &mut RaylibDrawHandle, cell_size: f32) {
     tetris.iter_dim(|x, y, c| {
         stroke_rect(
-            &mut draw,
+            draw,
             (
                 (x as f32 * cell_size).ceil(),
                 (y as f32 * cell_size).ceil(),
@@ -197,7 +197,7 @@ fn draw_playfield(tetris: &Tetris, mut draw: &mut RaylibDrawHandle, cell_size: f
             match c {
                 tetris_core::cell::Cell::Normal(TetrisColor(r, g, b)) => {
                     draw_rect(
-                        &mut draw,
+                        draw,
                         (
                             (x as f32 * cell_size).ceil(),
                             (y as f32 * cell_size).ceil(),
@@ -209,7 +209,7 @@ fn draw_playfield(tetris: &Tetris, mut draw: &mut RaylibDrawHandle, cell_size: f
                 }
                 tetris_core::cell::Cell::Ghost => {
                     draw_rect(
-                        &mut draw,
+                        draw,
                         (
                             (x as f32 * cell_size).ceil(),
                             (y as f32 * cell_size).ceil(),

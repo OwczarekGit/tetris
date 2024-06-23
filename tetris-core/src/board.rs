@@ -12,17 +12,17 @@ use crate::{
 pub const WIDTH: i32 = 10;
 pub const HEIGHT: i32 = 20;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Board {
     size: (i32, i32),
-    cells: [Option<Cell>; WIDTH as usize * HEIGHT as usize],
+    cells: Vec<Option<Cell>>,
 }
 
 impl Board {
     pub fn new(w: i32, h: i32) -> Self {
         Self {
             size: (w, h),
-            ..Default::default()
+            cells: vec![None; w as usize * h as usize],
         }
     }
     pub fn insert_brick(&mut self, (ox, oy): (i32, i32), brick: Brick) {
@@ -104,7 +104,7 @@ impl Default for Board {
     fn default() -> Self {
         Self {
             size: (WIDTH, HEIGHT),
-            cells: [None; WIDTH as usize * HEIGHT as usize],
+            cells: vec![None; WIDTH as usize * HEIGHT as usize],
         }
     }
 }
