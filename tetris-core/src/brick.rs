@@ -22,27 +22,27 @@ impl Brick {
     pub fn z() -> Self {
         Self([
             None, None, None, None,
-            RED, RED, None, None,
-            None, RED, RED, None,
+             RED,  RED, None, None,
+            None,  RED,  RED, None,
             None, None, None, None,
         ])
     }
 
     pub fn s() -> Self {
         Self([
-            None, None, None, None,
-            None, None, GREEN, GREEN,
-            None, GREEN, GREEN, None,
-            None, None, None, None,
+            None,  None,  None,  None,
+            None,  None, GREEN, GREEN,
+            None, GREEN, GREEN,  None,
+            None,  None,  None,  None,
         ])
     }
 
     pub fn l() -> Self {
         Self([
-            None, ORANGE, None, None,
-            None, ORANGE, None, None,
+            None, ORANGE,   None, None,
+            None, ORANGE,   None, None,
             None, ORANGE, ORANGE, None,
-            None, None, None, None,
+            None,   None,   None, None,
         ])
     }
 
@@ -57,19 +57,19 @@ impl Brick {
 
     pub fn t() -> Self {
         Self([
-            None, None, None, None,
+              None,   None,   None, None,
             PURPLE, PURPLE, PURPLE, None,
-            None, PURPLE, None, None,
-            None, None, None, None,
+              None, PURPLE,   None, None,
+              None,   None,   None, None,
         ])
     }
 
     pub fn o() -> Self {
         Self([
-            None, None, None, None,
+            None,   None,   None, None,
             None, YELLOW, YELLOW, None,
             None, YELLOW, YELLOW, None,
-            None, None, None, None,
+            None,   None,   None, None,
         ])
     }
 

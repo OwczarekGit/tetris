@@ -1,5 +1,5 @@
 use area::Area;
-use audio_box::{AudioBox, ROTATE_SOUND_BYTES, WRONG_MOVE_SOUND_BYTES};
+use audio_box::{ROTATE_SOUND_BYTES, WRONG_MOVE_SOUND_BYTES};
 use clap::Parser;
 use config::Config;
 use tetris_core::{
@@ -14,6 +14,8 @@ mod config;
 
 use raylib::prelude::*;
 
+pub static BRICK_IMAGE: &[u8] = include_bytes!("../brick.png");
+
 pub fn main() {
     dotenvy::dotenv().ok();
     let config = Config::parse();
@@ -23,6 +25,9 @@ pub fn main() {
         .title("Tetris")
         .resizable()
         .build();
+
+    let brick_image = Image::load_image_from_mem(".png", BRICK_IMAGE).unwrap();
+    let brick_texture = rl.load_texture_from_image(&thread, &brick_image).unwrap();
 
     // TODO: let mut audio = AudioBox::new();
     // audio.load_sound_from_bytes("rotate", ROTATE_SOUND_BYTES, ".ogg");
@@ -59,7 +64,7 @@ pub fn main() {
 
         let mut draw = rl.begin_drawing(&thread);
         draw.clear_background(Color::new(0, 44, 88, 255));
-        draw_playfield(&playfield, &tetris, &mut draw, cell_size);
+        draw_playfield(&playfield, &tetris, &mut draw, cell_size, &brick_texture);
 
         draw_boxed(
             (playfield.x() / 2.0 - cell_size * 2.0, cell_size * 2.0),
@@ -67,6 +72,7 @@ pub fn main() {
             Some(tetris.next()),
             "Next",
             &mut draw,
+            &brick_texture,
         );
 
         draw_boxed(
@@ -75,6 +81,7 @@ pub fn main() {
             tetris.held(),
             "Hold",
             &mut draw,
+            &brick_texture,
         );
 
         draw_score(cell_size, tetris.score(), &mut draw, &playfield);
@@ -99,6 +106,7 @@ fn draw_boxed(
     item: Option<impl IterateDimensions<Output = Option<Cell>>>,
     label: &str,
     draw: &mut RaylibDrawHandle,
+    brick_texture: &Texture2D,
 ) {
     draw.draw_text(
         label,
@@ -123,6 +131,7 @@ fn draw_boxed(
                                 cell_size.ceil(),
                             ),
                             Color::new(r, g, b, 255),
+                            brick_texture,
                         );
                     }
                     Cell::Ghost => todo!(),
@@ -137,6 +146,7 @@ fn draw_boxed(
                         cell_size.ceil(),
                     ),
                     Color::BLACK,
+                    brick_texture,
                 );
             }
         });
@@ -145,6 +155,7 @@ fn draw_boxed(
             draw,
             (ox, oy, (cell_size * 4.0).ceil(), (cell_size * 4.0).ceil()),
             Color::BLACK,
+            brick_texture,
         );
     }
 }
@@ -193,6 +204,10 @@ fn handle_events(
             KeyboardKey::KEY_S => {
                 tetris.swap_held();
             }
+            KeyboardKey::KEY_R => {
+                let t = Tetris::new(tetris.width(), tetris.height(), tetris.score() as i32);
+                *tetris = t;
+            }
             _ => {}
         }
     }
@@ -203,6 +218,7 @@ fn draw_playfield(
     tetris: &Tetris,
     draw: &mut RaylibDrawHandle,
     cell_size: f32,
+    brick_texture: &Texture2D,
 ) {
     tetris.iter_dim(|x, y, c| {
         stroke_rect(
@@ -227,6 +243,7 @@ fn draw_playfield(
                             cell_size.ceil(),
                         ),
                         Color::new(r, g, b, 255),
+                        brick_texture,
                     );
                 }
                 tetris_core::cell::Cell::Ghost => {
@@ -239,6 +256,7 @@ fn draw_playfield(
                             cell_size.ceil(),
                         ),
                         Color::new(255, 255, 255, 127),
+                        brick_texture,
                     );
                 }
             }
@@ -246,8 +264,25 @@ fn draw_playfield(
     });
 }
 
-fn draw_rect(draw: &mut RaylibDrawHandle, (x, y, w, h): (f32, f32, f32, f32), color: Color) {
-    draw.draw_rectangle(x as i32, y as i32, w as i32, h as i32, color);
+fn draw_rect(
+    draw: &mut RaylibDrawHandle,
+    (x, y, w, h): (f32, f32, f32, f32),
+    color: Color,
+    brick_texture: &Texture2D,
+) {
+    draw.draw_texture_pro(
+        brick_texture,
+        Rectangle::new(
+            0.0,
+            0.0,
+            brick_texture.width as f32,
+            brick_texture.height as f32,
+        ),
+        Rectangle::new(x, y, w, h),
+        Vector2::zero(),
+        0.0,
+        color,
+    );
 }
 
 fn stroke_rect(draw: &mut RaylibDrawHandle, (x, y, w, h): (f32, f32, f32, f32), color: Color) {
