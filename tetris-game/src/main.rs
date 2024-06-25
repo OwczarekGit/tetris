@@ -41,7 +41,7 @@ pub fn main() {
     let mut tetris = Tetris::new(
         config.width as i32,
         config.height as i32,
-        DummyRng::with_seed(rand::random()),
+        DummyRng::with_seed(config.seed.unwrap_or(rand::random())),
     );
     let (mut rl, thread) = raylib::init()
         .size(920, 720)

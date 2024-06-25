@@ -9,4 +9,7 @@ pub struct Config {
     /// Number of rows
     #[arg(short = 'H', long, default_value_t = tetris_core::board::HEIGHT)]
     pub height: u32,
+    /// Randomizer seed
+    #[arg(short, long)]
+    pub seed: Option<i32>,
 }
