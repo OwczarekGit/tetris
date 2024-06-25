@@ -1,17 +1,15 @@
-use rand::Rng;
-
 use crate::{
     board::Board,
     brick::Brick,
     cell::Cell,
     player::Player,
-    traits::{HasSize, IterateDimensions},
+    traits::{HasSize, IterateDimensions, Randomizer},
 };
 
 const EXTRA_FRAMES: u32 = 2;
 
 #[derive(Debug, Default, Clone)]
-pub struct Tetris {
+pub struct Tetris<R> {
     board: Board,
     player: Player,
     ghost: Player,
@@ -19,20 +17,17 @@ pub struct Tetris {
     held: Option<Brick>,
     step_timer: u32,
     score: u32,
+    randomizer: R,
 }
 
-fn random_brick() -> Brick {
-    let i: i32 = rand::thread_rng().gen_range(0..=6);
-    Brick::by_index(i)
-}
-
-impl Tetris {
-    pub fn new(w: i32, h: i32, seed: i32) -> Self {
+impl<R: Randomizer> Tetris<R> {
+    pub fn new(w: i32, h: i32, mut randomizer: R) -> Self {
         Self {
             board: Board::new(w, h),
-            player: Player::with_brick_centered_rand(w, seed),
-            next_player: Brick::by_index(seed.wrapping_mul(3)),
+            player: Player::with_brick_centered_rand(w, randomizer.next()),
+            next_player: Brick::by_index(randomizer.next()),
             step_timer: 1,
+            randomizer,
             ..Default::default()
         }
     }
@@ -67,7 +62,7 @@ impl Tetris {
             self.board
                 .insert_brick(self.player.position(), self.player.brick());
             self.player = Player::with_brick_centered(self.next_player, self.width());
-            self.next_player = random_brick();
+            self.next_player = self.random_brick();
             self.score += 2;
             false
         }
@@ -93,6 +88,10 @@ impl Tetris {
         }
     }
 
+    fn random_brick(&mut self) -> Brick {
+        Brick::by_index(self.randomizer.next())
+    }
+
     pub fn drop_block(&mut self) {
         let mut dropped = self.player;
         'dropped: loop {
@@ -105,7 +104,7 @@ impl Tetris {
         }
         self.board.insert_brick(dropped.position(), dropped.brick());
         self.player = Player::with_brick_centered(self.next_player, self.width());
-        self.next_player = random_brick();
+        self.next_player = self.random_brick();
         self.step_timer = 1;
         self.score += 1;
     }
@@ -122,7 +121,7 @@ impl Tetris {
         } else {
             self.held = Some(self.player.brick());
             self.player = Player::with_brick_centered(self.next_player, self.width());
-            self.next_player = random_brick();
+            self.next_player = self.random_brick();
             self.step_timer -= self.step_timer.saturating_sub(EXTRA_FRAMES).max(1);
             return true;
         }
@@ -164,7 +163,7 @@ impl Tetris {
     }
 }
 
-impl HasSize for Tetris {
+impl<R> HasSize for Tetris<R> {
     fn width(&self) -> i32 {
         self.board.width()
     }
@@ -174,7 +173,7 @@ impl HasSize for Tetris {
     }
 }
 
-impl IterateDimensions for Tetris {
+impl<R> IterateDimensions for Tetris<R> {
     type Output = Option<Cell>;
 
     fn get_item(&self, x: i32, y: i32) -> Self::Output {

@@ -5,7 +5,7 @@ use config::Config;
 use tetris_core::{
     cell::Cell,
     prelude::{Color as TetrisColor, Tetris},
-    traits::{HasSize, IterateDimensions},
+    traits::{HasSize, IterateDimensions, Randomizer},
 };
 
 mod area;
@@ -16,10 +16,33 @@ use raylib::prelude::*;
 
 pub static BRICK_IMAGE: &[u8] = include_bytes!("../brick.png");
 
+#[derive(Debug, Clone, Default)]
+struct DummyRng(i32);
+
+impl Randomizer for DummyRng {
+    fn new() -> Self {
+        Self(1)
+    }
+
+    fn with_seed(seed: i32) -> Self {
+        Self(seed)
+    }
+
+    fn next(&mut self) -> i32 {
+        let v = self.0.wrapping_mul(123);
+        self.0 = v;
+        v
+    }
+}
+
 pub fn main() {
     dotenvy::dotenv().ok();
     let config = Config::parse();
-    let mut tetris = Tetris::new(config.width as i32, config.height as i32, rand::random());
+    let mut tetris = Tetris::new(
+        config.width as i32,
+        config.height as i32,
+        DummyRng::with_seed(rand::random()),
+    );
     let (mut rl, thread) = raylib::init()
         .size(920, 720)
         .title("Tetris")
@@ -161,7 +184,7 @@ fn draw_boxed(
 }
 
 fn handle_events(
-    tetris: &mut Tetris,
+    tetris: &mut Tetris<DummyRng>,
     rl: &mut RaylibHandle,
     rotate_sound: &Sound,
     wrong_sound: &Sound,
@@ -205,7 +228,11 @@ fn handle_events(
                 tetris.swap_held();
             }
             KeyboardKey::KEY_R => {
-                let t = Tetris::new(tetris.width(), tetris.height(), tetris.score() as i32);
+                let t = Tetris::new(
+                    tetris.width(),
+                    tetris.height(),
+                    DummyRng::with_seed(tetris.score() as i32),
+                );
                 *tetris = t;
             }
             _ => {}
@@ -215,7 +242,7 @@ fn handle_events(
 
 fn draw_playfield(
     playfield_area: &Area,
-    tetris: &Tetris,
+    tetris: &Tetris<DummyRng>,
     draw: &mut RaylibDrawHandle,
     cell_size: f32,
     brick_texture: &Texture2D,

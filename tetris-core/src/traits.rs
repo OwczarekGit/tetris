@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub trait HasSize {
     fn width(&self) -> i32;
     fn height(&self) -> i32;
@@ -18,4 +20,10 @@ pub trait IterateDimensions: HasSize {
             }
         }
     }
+}
+
+pub trait Randomizer: Clone + Debug + Default {
+    fn new() -> Self;
+    fn with_seed(seed: i32) -> Self;
+    fn next(&mut self) -> i32;
 }
